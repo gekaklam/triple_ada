@@ -12,7 +12,10 @@ train_labeled <- as.data.table(train_labeled)
 train_labeled_lbls <- as.data.table(train_labeled_lbls)
 
 # Create an label that shows if it's an attack or not.
-train_labeled_lbls[, "Attack" := ifelse(get("Type") == 1, 1, 2)]
+train_labeled_lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
+
+# Combine the objects
+train_cmb <- cbind(train_labeled,train_labeled_lbls[,.(y)])
 
 
 # Load the un labeled training set and its labels
@@ -24,8 +27,9 @@ train_unlabeled <- as.data.table(train_unlabeled)
 train_unlabeled_lbls <- as.data.table(train_unlabeled_lbls)
 
 # Create an label that shows if it's an attack or not.
-train_unlabeled_lbls[, "Attack" := ifelse(get("Type") == 1, 1, 2)]
+train_unlabeled_lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
 
+train_unl_cmb <- cbind(train_unlabeled,train_unlabeled_lbls[,.(y)])
 
 # Load the testing set and its labels
 test_set <- read.csv("../data/Testing_LabeledSet.txt", header = FALSE, col.names = var_names)
@@ -36,10 +40,26 @@ test_set <- as.data.table(test_set)
 test_set_lbls <- as.data.table(test_set_lbls)
 
 # Create an label that shows if it's an attack or not.
-test_set_lbls[, "Attack" := ifelse(get("Type") == 1, 1, 2)]
+test_set_lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
+
+test_cmb <- cbind(test_set,test_set_lbls[,.(y)])
 
 # Set the tree depth to 1 (stumps)
 # default <- rpart.control()
+
 stump <- rpart.control(cp = -1, maxdepth = 1, minsplit = 0)
+
+#Create the discrete ada boost object
+
+gdis <- ada(y~., data = train_cmb, iter = 50, loss = "e", type = "discrete", control = stump)
+
+#Create the real ada boost object
+
+greal <- ada(y~., data = train_cmb, iter = 50, loss = "e", type = "real", control = stump)
+
+#Create the gentle ada boost object
+
+ggen <- ada(y~., data = train_cmb, iter = 50, loss = "e", type = "gentle", control = stump)
+
 
 
