@@ -61,5 +61,17 @@ greal <- ada(y~., data = train_cmb, iter = 50, loss = "e", type = "real", contro
 
 ggen <- ada(y~., data = train_cmb, iter = 50, loss = "e", type = "gentle", control = stump)
 
+# Add test to gdis
+gdis <- addtest(gdis, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
 
+# Add test to greal
+greal <- addtest(greal, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
+
+# Add test to ggen
+ggen <- addtest(ggen, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
+
+# get prediction from gdis
+pred_dis <- predict(gdis, test_set)
+pred_real <- predict(greal, test_set)
+pred_gent <- predict(ggen, test_set)
 
