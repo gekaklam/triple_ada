@@ -1,90 +1,58 @@
 library("ada")
 library("data.table")
+library("dplyr")
+library("splitstackshape")
 
 #Rprof(filename = "Rprof.out", memory.profiling = TRUE )
-set.seed(123456)
-var_names <- c("duration","protocol_type","service","flag","src_bytes","dst_bytes","land","wrong_fragment","urgent","hot","num_failed_logins","logged_in","num_compromised","root_shell","su_attempted","num_root","num_file_creations","num_shells","num_access_files","num_outbound_cmds","is_host_login","is_guest_login","count","srv_count","serror_rate","srv_serror_rate","rerror_rate","srv_rerror_rate","same_srv_rate","diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count","dst_host_same_srv_rate","dst_host_diff_srv_rate","dst_host_same_src_port_rate","dst_host_srv_diff_host_rate","dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate")
+#set.seed(123456)
 
-##############################################
-# Load the labeled training set and its labels
-train_labeled      <- data.table(read.csv("../data/Train_LabeledSet.txt", header = FALSE, col.names = var_names))
-train_labeled_lbls <- data.table(read.csv("../data/Train_LabeledSet_Label.txt", header = FALSE , col.names = c("Type")))
+var_names <- c("duration","protocol_type","service","flag","src_bytes","dst_bytes","land","wrong_fragment","urgent","hot","num_failed_logins","logged_in","num_compromised","root_shell","su_attempted","num_root","num_file_creations","num_shells","num_access_files","num_outbound_cmds","is_host_login","is_guest_login","count","srv_count","serror_rate","srv_serror_rate","rerror_rate","srv_rerror_rate","same_srv_rate","diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count","dst_host_same_srv_rate","dst_host_diff_srv_rate","dst_host_same_src_port_rate","dst_host_srv_diff_host_rate","dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate", "type")
 
-# Convert to data.tables
-#train_labeled      <- as.data.table(train_labeled)
-#train_labeled_lbls <- as.data.table(train_labeled_lbls)
+dt.tr <- data.table(read.csv("data_cleaned.csv", header = FALSE, col.names = var_names))
+dt.tst <- data.table(read.csv("data_test_cleaned.csv", header = FALSE, col.names = var_names))
 
-# Create a label that shows if it's an attack or not.
-train_labeled_lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
+# Remove two values from the test set, which have
+# a service not included in training data (probably error)
+dt.tst <- dt.tst[dt.tst[,service != "icmp" ]]
 
-# Combine the objects
-train_cmb <- cbind(train_labeled,train_labeled_lbls[,.(y)])
-ss1 <- subset(train_cmb, y==1)
-ss2 <- subset(train_cmb, y==2)
+# and their levels
+dt.tst$service <- droplevels(dt.tst$service)
 
-train.ada1 <- rbind(ss1[1:1000], ss2[1:333])
-train.ada2 <- rbind(ss1[1001:2000], ss2[334:666])
-train.ada3 <- rbind(ss1[2001:3000], ss2[667:999])
 
-#train.ada1 <- rbind(ss1[1:10], ss2[1:10])
-#train.ada2 <- rbind(ss1[101:110], ss2[330:340])
-#train.ada3 <- rbind(ss1[201:210], ss2[660:670])
+# Set the percentance of training data that will be used as labeled 
+p <- 0.1
 
-train_dt <- list(train.ada1, train.ada2, train.ada3)
+#Create the two samples from the training data
+
+smpls <- stratified(dt.tr, "type", p, bothSets = TRUE)
+
+train.labeled   <- smpls[[1]][sample(nrow(smpls$SAMP1)),]
+train.unlabeled <- smpls[[2]][sample(nrow(smpls$SAMP2)),]
+
+train.labeled[, "type" := ifelse(get("type") == "normal", 1, 2) ]
+train.labeled$type <- as.factor(train.labeled$type)
+
+dt.tst[, "type" := ifelse(get("type") == "normal", 1, 2) ]
+dt.tst$type <- as.factor(dt.tst$type)
+
+train.unlabeled <- subset(train.unlabeled, select = -type)
+
+# Split the datasets for the three adaboosts
+train.labeled.split <- split(train.labeled , f = rep_len(1:3, nrow(train.labeled)))
+
+# Set the types for the different adaboost methods
 type_i <- c("discrete", "real", "gentle")
-
-#################################################
-# Load the un labeled training set and its labels
-train.unlabeled      <- data.table(read.csv("../data/Train_UnlabeledSet.txt", header = FALSE, col.names = var_names))
-#train_unlabeled_lbls <- data.table(read.csv("../data/Train_UnlabeledSet_Label.txt", header = FALSE, col.names = c("Type")))
-
-# Convert to data.tables
-#train_unlabeled <- as.data.table(train_unlabeled)
-#train_unlabeled_lbls <- as.data.table(train_unlabeled_lbls)
-
-# Create an label that shows if it's an attack or not.
-#train_unlabeled_lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
-
-#train_unl_cmb <- cbind(train_unlabeled,train_unlabeled_lbls[,.(y)])
-
-#################################################
-# Load the testing set and its labels
-test.set      <- data.table(read.csv("../data/Testing_LabeledSet.txt", header = FALSE, col.names = var_names))
-test.set.lbls <- data.table(read.csv("../data/Testing_LabeledSet_Label.txt", header = FALSE, col.names = c("Type")))
-
-# Convert to data.tables
-#test_set <- as.data.table(test_set)
-#test_set_lbls <- as.data.table(test_set_lbls)
-
-# Create an label that shows if it's an attack or not.
-test.set.lbls[, "y" := ifelse(get("Type") == 1, 1, 2)]
-
-test.cmb <- cbind(test.set,test.set.lbls[,.(y)])
-
-#################################################
-# Set the tree depth to 1 (stumps)
-# default <- rpart.control()
 
 h_i <- list(0, 0, 0)
 
+# Create the stumps
 stump <- rpart.control(cp = -1, maxdepth = 1, minsplit = 0)
 
 for (i in 1:3) {
-  h_i[[i]] <- ada(y~., data = train_dt[[i]], iter = 50, loss="e", type = type_i[i], control = stump )
+  h_i[[i]] <- ada(type~., data = train.labeled.split[[i]], iter = 50, loss="e", type = type_i[i], control = stump )
 }
 
-#Create the discrete ada boost object
-#ada1 <- ada(y~., data = train.ada1, iter = 50, loss = "e", type = "discrete", control = stump)
-
-#Create the real ada boost object
-#ada2 <- ada(y~., data = train.ada2, iter = 50, loss = "e", type = "real", control = stump)
-
-#Create the gentle ada boost object
-#ada3 <- ada(y~., data = train.ada3, iter = 50, loss = "e", type = "gentle", control = stump)
-
-#Make the list of the objects
-
-
+# Initialize variables
 e.n_i    <- c(0.5, 0.5, 0.5)
 l.n_i    <- c(0, 0, 0)
 L_i      <- list(0, 0, 0)
@@ -123,11 +91,11 @@ repeat {
 #      cat("Inside the first if","\n")
 #      cat("\n")
       # Here we name pred_1 = y, so that it is easier later in the rbind
-      y      <- predict(h_i[-i][[1]], train.unlabeled)
+      type   <- predict(h_i[-i][[1]], train.unlabeled)
       pred_2 <- predict(h_i[-i][[2]], train.unlabeled)
       
-      d_t <- data.table(cbind(train.unlabeled, y))
-      agree <- y == pred_2
+      d_t <- data.table(cbind(train.unlabeled, type))
+      agree <- type == pred_2
       cat("Number of predictions that classifier agree:", sum(agree==1), "\n")
       L_i[[i]] <- d_t[agree,]
       
@@ -177,10 +145,10 @@ repeat {
     if (update_i[i] == TRUE) {
       cat("Now updating:", i, "\n")
       cat("\n")
-      cat("Dim, Train",i,"is:\t", dim(train_dt[[i]])[1], "\n")
+      cat("Dim, Train",i,"is:\t", dim(train.labeled.split[[i]])[1], "\n")
       cat("Dim, L_",i," is:\t\t ", dim(L_i[[i]])[1], "\n", sep = "")
-      cat("Dim, combined is: \t", dim(L_i[[i]])[1]+dim(train_dt[[i]])[1], "\n")
-      h_i[[i]] <- ada(y~., data = rbind(train_dt[[i]],L_i[[i]]), iter = 50, loss="e", type = type_i[i], control = stump )
+      cat("Dim, combined is: \t", dim(L_i[[i]])[1]+dim(train.labeled.split[[i]])[1], "\n")
+      h_i[[i]] <- ada(type~., data = rbind(train.labeled.split[[i]],L_i[[i]]), iter = 50, loss="e", type = type_i[i], control = stump )
       cat("Re-trained classifier with", h_i[[i]]$dim[1], "data points. \n")
       cat("\n")
       e.n_i[[i]] <- e_i[[i]]
@@ -249,9 +217,10 @@ cmp_lbls <- function(pred.lbls, test.lbls) {
 }
 
 #Rprof(filename = "Rprof.out", memory.profiling = TRUE )
-tprd.cmb <- tri_pred(test.set, h_i)
-cmp_lbls(tprd.cmb, test.set.lbls$y)
-table(tprd.cmb,test.set.lbls$y)
+tprd.cmb <- cbind(tprd.cmb, tri_pred(subset(dt.tst, select = -type), h_i))
+#tprd.cmb <- tri_pred(subset(dt.tst, select = -type), h_i)
+#cmp_lbls(tprd.cmb, subset(dt.tst, select = type))
+#table(tprd.cmb, subset(dt.tst, select = type)[,type])
 #Rprof()
 
 #cmp_lbls(tprd.1, test.set.lbls$y)
