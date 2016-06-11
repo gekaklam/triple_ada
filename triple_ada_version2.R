@@ -4,20 +4,77 @@ library("dplyr")
 library("splitstackshape")
 
 #Rprof(filename = "Rprof.out", memory.profiling = TRUE )
-#set.seed(123456)
 
-var_names <- c("duration","protocol_type","service","flag","src_bytes","dst_bytes","land","wrong_fragment","urgent","hot","num_failed_logins","logged_in","num_compromised","root_shell","su_attempted","num_root","num_file_creations","num_shells","num_access_files","num_outbound_cmds","is_host_login","is_guest_login","count","srv_count","serror_rate","srv_serror_rate","rerror_rate","srv_rerror_rate","same_srv_rate","diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count","dst_host_same_srv_rate","dst_host_diff_srv_rate","dst_host_same_src_port_rate","dst_host_srv_diff_host_rate","dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate", "type")
+##################################
+# Start of preprocessing section #
+##################################
 
-dt.tr <- data.table(read.csv("data_cleaned.csv", header = FALSE, col.names = var_names))
-dt.tst <- data.table(read.csv("data_test_cleaned.csv", header = FALSE, col.names = var_names))
+var_names <- c("duration","protocol_type",
+               "service","flag","src_bytes",
+               "dst_bytes","land","wrong_fragment",
+               "urgent","hot","num_failed_logins",
+               "logged_in","num_compromised","root_shell",
+               "su_attempted","num_root","num_file_creations",
+               "num_shells","num_access_files","num_outbound_cmds",
+               "is_host_login","is_guest_login","count",
+               "srv_count","serror_rate","srv_serror_rate",
+               "rerror_rate","srv_rerror_rate","same_srv_rate",
+               "diff_srv_rate","srv_diff_host_rate","dst_host_count",
+               "dst_host_srv_count","dst_host_same_srv_rate",
+               "dst_host_diff_srv_rate", "dst_host_same_src_port_rate",
+               "dst_host_srv_diff_host_rate","dst_host_serror_rate",
+               "dst_host_srv_serror_rate","dst_host_rerror_rate",
+               "dst_host_srv_rerror_rate", "type")
 
-# Remove two values from the test set, which have
-# a service not included in training data (probably error)
-dt.tst <- dt.tst[dt.tst[,service != "icmp" ]]
+col.classes <-  c("land"="factor",
+                  "logged_in"="factor",
+                  "is_host_login"="factor",
+                  "is_guest_login"="factor")
 
-# and their levels
-dt.tst$service <- droplevels(dt.tst$service)
 
+dt.train <- data.table(read.csv("data_cleaned.csv", header = FALSE,
+                             col.names = var_names,
+                             colClasses = col.classes))
+
+dt.test <- data.table(read.csv("data_test_cleaned.csv", header = FALSE,
+                              col.names = var_names,
+                              colClasses = col.classes))
+
+
+# Remove data from train / test datasets, which levels don't exist on
+# both of them. (~20)  #TODO add exact number
+
+
+dt.test <- dt.test[dt.test[,service != "icmp"]]
+dt.test <- dt.test[dt.test[,is_host_login != "1"]]
+dt.train <- dt.train[dt.train[,service != "red_i"]]
+dt.train <- dt.train[dt.train[,service != "urh_i"]]
+
+# And their levels
+
+dt.train$service <- droplevels(dt.train$service)
+dt.test$service <- droplevels(dt.test$service)
+dt.test$is_host_login <- droplevels(dt.test$is_host_login)
+  
+# Convert all entries that don't have a type normal,
+# to an attack "2" and those which are normal to "1".
+
+dt.train[(type!="normal")]$type <- "2"     
+dt.train[(type=="normal")]$type <- "1"
+
+dt.test[(type!="normal")]$type <- "2"     
+dt.test[(type=="normal")]$type <- "1"
+
+# Drop the unused levels from the type column
+dt.train$type <- droplevels(dt.train$type)
+dt.test$type <- droplevels(dt.test$type)
+
+#############################
+# End of preprocessing part # 
+#############################
+
+# Set seed so that result will be reproducible
+set.seed(42)
 
 # Set the percentance of training data that will be used as labeled 
 p <- 0.1
