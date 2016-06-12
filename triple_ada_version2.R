@@ -352,172 +352,141 @@ cmp_lbls <- function(pred.lbls, test.lbls,
 ##############################
 
 # Set seed so that result will be reproducible
-#set.seed(42)
+set.seed(42)
 
 # Enable debug
 
 dbug <- FALSE
 
 # Set number of runs
-r <- 3
+r.max <- 30
 
 # Allocate the datatable
 results.table <- data.table(
-  run_number  = integer(r),
-  true_pos    = integer(r),
-  true_neg    = integer(r),
-  false_pos   = integer(r),
-  false_neg   = integer(r),
-  normal      = integer(r),
-  attacks     = integer(r),
-  perc.norma  = numeric(r),    
-  perc.attac  = numeric(r),   
-  correct     = integer(r), 
-  wrong       = integer(r), 
-  accuracy    = numeric(r), 
-  precision   = numeric(r),  
-  recall      = numeric(r), 
-  f_measure   = numeric(r),    
-  g_mean      = numeric(r), 
-  false_alrm  = numeric(r),    
-  det_rate    = numeric(r),  
-  sizeof_L    = integer(r),  
-  sizeof_U    = integer(r),  
-  unlab_h1    = numeric(r),    
-  unlab_h2    = numeric(r),    
-  unlab_h3    = numeric(r),    
-  tritr.iter  = integer(r),    
-  auc         = numeric(r),    
-  time.train  = numeric(r),
-  time.pred   = numeric(r)
+  run_number  = integer(r.max),
+  true_pos    = integer(r.max),
+  true_neg    = integer(r.max),
+  false_pos   = integer(r.max),
+  false_neg   = integer(r.max),
+  normal      = integer(r.max),
+  attacks     = integer(r.max),
+  perc.norma  = numeric(r.max),    
+  perc.attac  = numeric(r.max),   
+  correct     = integer(r.max), 
+  wrong       = integer(r.max), 
+  accuracy    = numeric(r.max), 
+  precision   = numeric(r.max),  
+  recall      = numeric(r.max), 
+  f_measure   = numeric(r.max),    
+  g_mean      = numeric(r.max), 
+  false_alrm  = numeric(r.max),    
+  det_rate    = numeric(r.max),  
+  sizeof_L    = integer(r.max),  
+  sizeof_U    = integer(r.max),  
+  unlab_h1    = numeric(r.max),    
+  unlab_h2    = numeric(r.max),    
+  unlab_h3    = numeric(r.max),    
+  tritr.iter  = integer(r.max),    
+  auc         = numeric(r.max),    
+  time.train  = numeric(r.max),
+  time.pred   = numeric(r.max),
+  L.ratio     = numeric(r.max),
+  U.ratio     = numeric(r.max),
+  T.length    = numeric(r.max)
 )
-# Set numbers for the data that will be used. 
-p.L    <- 0.75
-L.size <- 1200
-p.U    <- 0.7
-U.size <- 10000
-p.T    <- 5/6
-T.size <- 30000
 
-
-# Divide the training dataset into two separate one, from which
-# we'll get the parts for our labeled and unlabeled data.
-
-parts <- stratified(dt.train, group = "type",
-                    size = 0.5, bothSets = TRUE)
-
-# Create the labeled dataset.
-dt.train.labeled   <- stratified(parts$SAMP1, group = "type",
-                              size = c("1" = p.L*L.size, 
-                                       "2" = (1 - p.L)*L.size
-                                       )
-                              )
-
-# Create the unlabeled dataset
-dt.train.unlabeled <- stratified(parts$SAMP2, group = "type",
-                              size = c("1" = p.U*U.size, 
-                                       "2" = (1 - p.U)*U.size
-                                       )
-                              )
-# Create the test dataset
-dt.test.part <- stratified(dt.test, group = "type",
-                           size = c("1" = p.T*T.size,
-                                    "2" = (1 - p.T)*T.size
-                                    )
-                           )
-
-
-# Remove the labels from the unlabeled dataset.
-dt.train.unlabeled <- subset(dt.train.unlabeled, select = -type)
-
-
-# Call Tri-training with the labeled and the unlabeled datasets.
-
-ttr_c <- tri_train(dt.train.labeled, 
-                   dt.train.unlabeled, 
-                   dbug = dbug,
-                   results.table = results.table)
-
-# Get prediction for the test data.
-
-preds <- tri_pred(dt.test.part, ttr_c)
-results <- cmp_lbls(preds,
-                    dt.test.part[,type],
-                    dbug = dbug,
-                    results.table = results.table)
-
+for (T.length in seq(5000, 45000, 5000)) {
+  results.table$T.length <- T.length
+  cat("T.length:", T.length, "from 45000.\n")
+  for (U.ratio in seq(0.1, 1, 0.1)) {
+    cat("U.ratio:", U.ratio, "\n")
+    results.table$U.ratio <- U.ratio
+    for (L.ratio in seq(0.05,1,0.05)) {
+      cat("L.ratio:", L.ratio, "\n")
+      results.table$L.ratio <- L.ratio
+      # Set numbers for the data that will be used. 
+      #p.L    <- 0.75
+      #L.size <- 4000
+      #p.U    <- 0.7
+      #U.size <- 10000
+      #p.T    <- 5/6
+      #T.size <- 30000
+    
+      p.L    <- 0.75
+      p.U    <- 0.7
+      p.T    <- 5/6
+      T.size <- T.length
+      U.size <- T.size * U.ratio
+      L.size <- U.size * L.ratio
+      
+      for (r in 1:r.max) {
+        # Divide the training dataset into two separate one, from which
+        # we'll get the parts for our labeled and unlabeled data.
+        cat("Run no:",r,"of",r.max,"\n")
+        parts <- stratified(dt.train, group = "type",
+                            size = 0.5, bothSets = TRUE)
+        
+        # Create the labeled dataset.
+        dt.train.labeled   <- stratified(parts$SAMP1, group = "type",
+                                      size = c("1" = p.L*L.size, 
+                                               "2" = (1 - p.L)*L.size
+                                               )
+                                      )
+        
+        # Create the unlabeled dataset
+        dt.train.unlabeled <- stratified(parts$SAMP2, group = "type",
+                                      size = c("1" = p.U*U.size, 
+                                               "2" = (1 - p.U)*U.size
+                                               )
+                                      )
+        # Create the test dataset
+        dt.test.part <- stratified(dt.test, group = "type",
+                                   size = c("1" = p.T*T.size,
+                                            "2" = (1 - p.T)*T.size
+                                            )
+                                   )
+        
+        
+        # Remove the labels from the unlabeled dataset.
+        dt.train.unlabeled <- subset(dt.train.unlabeled, select = -type)
+        
+        
+        # Call Tri-training with the labeled and the unlabeled datasets.
+        
+        ttr_c <- tri_train(dt.train.labeled, 
+                           dt.train.unlabeled, 
+                           dbug = dbug,
+                           results.table = results.table)
+        
+        # Get prediction for the test data.
+        
+        preds <- tri_pred(dt.test.part, ttr_c)
+        results <- cmp_lbls(preds,
+                            dt.test.part[,type],
+                            dbug = dbug,
+                            results.table = results.table)
+      
+        results.table$run_number[r] <- r
+        results.table$sizeof_L[r]   <- L.size
+        results.table$sizeof_U[r]   <- U.size
+        filename <- paste("results/",
+                          "T_size_", as.character(T.size),
+                          "_",
+                          "U_ratio_", as.character(U.ratio),
+                          "_",
+                          "L_ratio_", as.character(L.ratio),
+                          ".csv",sep = "")
+        
+        write.table(results.table, file = filename,
+                    append = FALSE, sep = ",",
+                    row.names = FALSE,
+                    col.names = FALSE)
+        
+      } # End of runs
+    } # End of L.Ration section
+  }
+}
 
 #######################
 # End of main section #
 #######################
-
-
-#Rprof(filename = "Rprof.out", memory.profiling = TRUE )
-#tprd.cmb <- cbind(tprd.cmb, tri_pred(subset(dt.tst, select = -type), h_i))
-#tprd.cmb <- tri_pred(subset(dt.tst, select = -type), h_i)
-#cmp_lbls(tprd.cmb, subset(dt.tst, select = type))
-#table(tprd.cmb, subset(dt.tst, select = type)[,type])
-#Rprof()
-
-#cmp_lbls(tprd.1, test.set.lbls$y)
-#cmp_lbls(tprd.2, test.set.lbls$y)
-#cmp_lbls(tprd.3, test.set.lbls$y)
-
-
-
-# Add test to gdis
-#gdis <- addtest(gdis, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
-
-# Add test to greal
-#greal <- addtest(greal, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
-
-# Add test to ggen
-#ggen <- addtest(ggen, train_unl_cmb[, var_names, with=FALSE], train_unl_cmb[,y])
-
-# get prediction from gdis
-#pred_dis  <- predict(gdis,  train_unlabeled)
-#pred_real <- predict(greal, train_unlabeled)
-#pred_gent <- predict(ggen,  train_unlabeled)
-
-# Convert predictions to data tables
-#pred_dis  <- as.data.table(pred_dis)
-#pred_real <- as.data.table(pred_real)
-#pred_gent <- as.data.table(pred_gent)
-
-## Combine the predictions with the correct labels
-#dis_res <- cbind(pred_dis_dt[,"pred_dis"], test_set_lbls[,.(y)])
-#real_res <- cbind(pred_real_dt[,"pred_real"], test_set_lbls[,.(y)])
-#gent_res <- cbind(pred_gent_dt[,"pred_gent"], test_set_lbls[,.(y)])
-
-# Create a new column. If the prediction and the correct label match,
-# then put 1. Else put 0
-#dis_res[, "p" := ifelse(get("V1")==get("y"), 1, 0)]
-#real_res[, "p" := ifelse(get("V1")==get("y"), 1, 0)]
-#gent_res[, "p" := ifelse(get("V1")==get("y"), 1, 0)]
-
-# Convert the columns to factors
-#dis_res$y <- as.factor(dis_res$y)
-#real_res$y <- as.factor(real_res$y)
-#gent_res$y <- as.factor(gent_res$y)
-
-#dis_res$p <- as.factor(dis_res$p)
-#real_res$p <- as.factor(real_res$p)
-#gent_res$p <- as.factor(gent_res$p)
-
-# Display the summary
-
-#summary(dis_res)
-#summary(real_res)
-#summary(gent_res)
-
-#comb <- cbind(pred_dis_dt, pred_gent_dt, pred_real_dt)
-#comb <- as.data.table(comb)
-#comb[,tr:= ifelse( (get("pred_dis") == get("pred_gent")) & (get("pred_dis") == get("pred_real")), 1,0 )]
-#comb$tr <- as.factor(comb$tr)
-
-#pred_rd <- cbind(pred_real_dt, pred_dis_dt)
-#pred_rg <- cbind(pred_real_dt, pred_gent_dt)
-#pred_gd <- cbind(pred_gent_dt, pred_dis_dt)
-
-
-
