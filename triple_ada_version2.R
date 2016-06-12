@@ -42,13 +42,13 @@ dt.test <- data.table(read.csv("data_test_cleaned.csv", header = FALSE,
 
 
 # Remove data from train / test datasets, which levels don't exist on
-# both of them. (~20)  #TODO add exact number
+# both of them. (29 points in total).
 
 
-dt.test <- dt.test[dt.test[,service != "icmp"]]
-dt.test <- dt.test[dt.test[,is_host_login != "1"]]
-dt.train <- dt.train[dt.train[,service != "red_i"]]
-dt.train <- dt.train[dt.train[,service != "urh_i"]]
+dt.test <- dt.test[dt.test[,service != "icmp"]]     #  2 data points
+dt.test <- dt.test[dt.test[,is_host_login != "1"]]  # 12 data points
+dt.train <- dt.train[dt.train[,service != "red_i"]] #  1 data point
+dt.train <- dt.train[dt.train[,service != "urh_i"]] # 14 data points
 
 # And their levels
 
@@ -395,13 +395,18 @@ results.table <- data.table(
   T.length    = numeric(r.max)
 )
 
-for (T.length in seq(5000, 45000, 5000)) {
+#for (T.length in c(30000)) {
+  T.length <- 30000
   results.table$T.length <- T.length
-  cat("T.length:", T.length, "from 45000.\n")
-  for (U.ratio in seq(0.1, 1, 0.1)) {
+  
+  #cat("T.length:", T.length, "from 45000.\n")
+  
+#  for (U.ratio in c(1/3)) {
     cat("U.ratio:", U.ratio, "\n")
+    U.ratio <- 1/3
     results.table$U.ratio <- U.ratio
-    for (L.ratio in seq(0.05,1,0.05)) {
+  
+    for (L.ratio in seq(0.05,0.4,0.05)) {
       cat("L.ratio:", L.ratio, "\n")
       results.table$L.ratio <- L.ratio
       # Set numbers for the data that will be used. 
@@ -416,7 +421,8 @@ for (T.length in seq(5000, 45000, 5000)) {
       p.U    <- 0.7
       p.T    <- 5/6
       T.size <- T.length
-      U.size <- T.size * U.ratio
+      #U.size <- T.size * U.ratio
+      U.size <- 10000
       L.size <- U.size * L.ratio
       
       for (r in 1:r.max) {
@@ -469,24 +475,43 @@ for (T.length in seq(5000, 45000, 5000)) {
         results.table$run_number[r] <- r
         results.table$sizeof_L[r]   <- L.size
         results.table$sizeof_U[r]   <- U.size
-        filename <- paste("results/",
-                          "T_size_", as.character(T.size),
-                          "_",
-                          "U_ratio_", as.character(U.ratio),
-                          "_",
-                          "L_ratio_", as.character(L.ratio),
-                          ".csv",sep = "")
-        
-        write.table(results.table, file = filename,
-                    append = FALSE, sep = ",",
-                    row.names = FALSE,
-                    col.names = FALSE)
-        
+      
+      
       } # End of runs
+      filename <- paste("results/",
+                        "T_size_", as.character(T.size),
+                        "_",
+                        "U_ratio_", as.character(U.ratio),
+                        "_",
+                        "L_ratio_", as.character(L.ratio),
+                        ".csv",sep = "")
+      
+      write.table(results.table, file = filename,
+                  
+                  append = FALSE, sep = ",",
+                  row.names = FALSE,
+                  col.names = FALSE)
+      
     } # End of L.Ration section
-  }
-}
+#  }
+#}
 
 #######################
 # End of main section #
 #######################
+
+###############################
+# Procedure to obtain results #
+###############################
+
+# Given that we set the seed at the beginning of the programm,
+# to have reproducibility, the "for-loops" should also be 
+# run on the same sets.
+# 
+# The first set of results was obtained using:
+#
+#   for (T.length in seq(5000, 45000, 10000))
+#     for (U.ratio in seq(0.1, 0.3, 0.1))
+#       for (L.ratio in seq(0.1,0.4,0.1))
+
+
