@@ -306,7 +306,7 @@ cmp_lbls <- function(pred.lbls, test.lbls,
   results.table$normal[r]       <<- num.normal
   results.table$attacks[r]      <<- num.attack
   results.table$perc.norma[r]   <<- nrm.rat
-  results.table$perc.attac[r]   <<- num.attack
+  results.table$perc.attac[r]   <<- att.rat
   results.table$correct[r]      <<- num.cor
   results.table$wrong[r]        <<- num.wrg
   results.table$accuracy[r]     <<- acc
@@ -406,7 +406,7 @@ results.table <- data.table(
     U.ratio <- 1/3
     results.table$U.ratio <- U.ratio
   
-    for (L.ratio in seq(0.05,0.4,0.05)) {
+ #   for (L.ratio in seq(0.05,0.4,0.05)) {
       cat("L.ratio:", L.ratio, "\n")
       results.table$L.ratio <- L.ratio
       # Set numbers for the data that will be used. 
@@ -423,7 +423,8 @@ results.table <- data.table(
       T.size <- T.length
       #U.size <- T.size * U.ratio
       U.size <- 10000
-      L.size <- U.size * L.ratio
+      #L.size <- U.size * L.ratio
+      L.size <- 4000
       
       for (r in 1:r.max) {
         # Divide the training dataset into two separate one, from which
@@ -478,13 +479,14 @@ results.table <- data.table(
       
       
       } # End of runs
-      filename <- paste("results/",
-                        "T_size_", as.character(T.size),
-                        "_",
-                        "U_ratio_", as.character(U.ratio),
-                        "_",
-                        "L_ratio_", as.character(L.ratio),
-                        ".csv",sep = "")
+      #filename <- paste("results/",
+      #                  "T_size_", as.character(T.size),
+      #                  "_",
+      #                  "U_ratio_", as.character(U.ratio),
+      #                  "_",
+      #                  "L_ratio_", as.character(L.ratio),
+      #                  ".csv",sep = "")
+      filename <- paste("results/comparison.csv")
       
       write.table(results.table, file = filename,
                   
@@ -492,7 +494,7 @@ results.table <- data.table(
                   row.names = FALSE,
                   col.names = FALSE)
       
-    } # End of L.Ration section
+    #} # End of L.Ration section
 #  }
 #}
 
@@ -512,6 +514,15 @@ results.table <- data.table(
 #
 #   for (T.length in seq(5000, 45000, 10000))
 #     for (U.ratio in seq(0.1, 0.3, 0.1))
-#       for (L.ratio in seq(0.1,0.4,0.1))
-
-
+#       for (L.ratio in seq(0.1,0.4,
+#
+# The second set of results was obtain using:
+#    T.length <- 30000
+#    U.ratio <- 1/3
+#    for (L.ratio in seq(0.05,0.4,0.05)) {
+#      p.L    <- 0.75
+#      p.U    <- 0.7
+#      p.T    <- 5/6
+#      T.size <- T.length
+#      U.size <- 10000
+#      L.size <- U.size * L.ratio
