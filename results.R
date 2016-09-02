@@ -30,21 +30,42 @@ dt.res.mean <- dt.res[, lapply(.SD, mean),
 dt.res.median <- dt.res[, lapply(.SD, median), 
                       by=list(L.ratio, U.ratio, T.length)]
 
-> qplot(x=sizeof_L,
-        +       y=(unlab_h1+unlab_h2+unlab_h3)/3,
-        +       data=dt.tmp,
-        +       main = "Unlabeled data sample, vs Labeled set size",
-        +       ylab = "Average size of unlabeled sample",
-        +       xlab = "Size of Labeled dataset",
-        +       color=L.ratio) + geom_smooth(se=F)
-> 
+dt.tmp <- data.frame(dt.res.mean)
+dt.tmp$L.ratio <- as.factor(dt.tmp$L.ratio)
 
-  > qplot(x=sizeof_L,
-          +       y=precision,
-          +       data=dt.tmp,
-          +       main = "Precision, vs Labeled set size",
-          +       ylab = "Precision",
-          +       xlab = "Size of Labeled dataset",
-          +       color=L.ratio) + geom_smooth(se=F) + labs(colour="Labeled \nset ratio")  
+
+qplot(x=sizeof_L,
+      y=(unlab_h1+unlab_h2+unlab_h3)/3,
+      data=dt.tmp,
+      main = "Unlabeled data sample, vs Labeled set size",
+      ylab = "Average size of unlabeled sample",
+      xlab = "Size of Labeled dataset",
+      color=L.ratio) + geom_smooth(se=F)
+
+
+ qplot(x=sizeof_L,
+       y=precision,
+       data=dt.tmp,
+       main = "Precision, vs Labeled set size",
+       ylab = "Precision",
+       xlab = "Size of Labeled dataset",
+       color=L.ratio) + geom_smooth(se=F) + labs(colour="Labeled \nset ratio")
+ 
+qplot(x=sizeof_L,
+      y=(unlab_h1+unlab_h2+unlab_h3)/3,
+      data=dt.tmp,
+      main = "Unlabeled data sample, vs Labeled set size",
+      ylab = "Average size of unlabeled sample",
+      xlab = "Size of Labeled dataset",
+      shape=L.ratio) + geom_smooth(se=F, aes(color=L.ratio)) + theme_bw() + scale_color_grey()
+
+qplot(x=sizeof_L,
+      y=precision,
+      data=dt.tmp,
+      main = "Precision, vs Labeled set size",
+      ylab = "Precision",
+      xlab = "Size of Labeled dataset",
+      color=L.ratio, shape=L.ratio) + geom_smooth(se=F, aes(color=L.ratio)) +theme_bw() +scale_color_grey()
+
   
   
