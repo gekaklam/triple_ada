@@ -1,3 +1,7 @@
+
+[![DOI](https://zenodo.org/badge/60990456.svg)](https://zenodo.org/badge/latestdoi/60990456)
+
+
 # triple_ada
 Code used to implement Tri-training with Adaboost. It's still work in progress.
 
